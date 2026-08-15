@@ -1,20 +1,23 @@
-from .search_utils import DEFAULT_SEARCH_LIMIT, load_movies, load_stop_words
+from .search_utils import DEFAULT_SEARCH_LIMIT,CACHE_DIR, load_movies, load_stop_words
 import string
 from nltk.stem import PorterStemmer
 import pickle
+import os
 
 stemmer = PorterStemmer()
 
 class InvertedIndex():
-    index: dict[str: set()]
-    docmap: dict[int: str]
+    
+    def __init__(self):
+        self.index: dict[str: set()] = dict()
+        self.docmap: dict[int: str] = dict()
 
     def __add_document(self, doc_id:int, text:str) -> None:
         tokens = tokenize(text)
 
         for token in tokens:
             if token not in self.index.keys():
-                self.index[token] = set(doc_id)
+                self.index[token] = {doc_id}
             else:
                 self.index[token].add(doc_id)
     
@@ -31,13 +34,14 @@ class InvertedIndex():
     
     def save(self) -> None:
         if not os.path.isdir(CACHE_DIR):
-            os.path.mkdir(CACHE_DIR)
-
+            os.mkdir(CACHE_DIR)
         # pickle the index and docmap
         index_file_path = os.path.join(CACHE_DIR, "index.pkl")
-        docmap_file_path = os.join(CACHE_DIR, "docmap.pkl")
-        pickle.dump(self.index, index_file_path)
-        pickle.dump(self.docmap, docmap_file_path)
+        docmap_file_path = os.path.join(CACHE_DIR, "docmap.pkl")
+        with open(index_file_path, 'wb') as f:
+            pickle.dump(self.index, f)
+        with open(docmap_file_path, 'wb') as f:
+            pickle.dump(self.docmap, f)
 
 def search_command(query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> list[dict]:
     movies = load_movies()
