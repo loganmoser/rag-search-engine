@@ -10,4 +10,5 @@ wheels/
 .venv
 
 # Data directory does not need to be tracked 
-/data/
+data/
+cache/
