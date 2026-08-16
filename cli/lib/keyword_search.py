@@ -93,7 +93,7 @@ def search_command(query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> list[dict]:
                 return results
     return results
 
-def tf_command(doc_id: int, term:str) -> None:
+def tf_command(doc_id: int, term:str) -> int:
     idx = InvertedIndex()
     token_term = tokenize_word(term)
     
@@ -103,9 +103,9 @@ def tf_command(doc_id: int, term:str) -> None:
         print(f"Error loading  index and docmap: {e}")
         sys.exit(1)
 
-    print(f"Term frequency for {term}: {idx.get_tf(doc_id, term)}")
+    return idx.get_tf(doc_id, term)
 
-def idf_command(term: str) -> None:
+def idf_command(term: str) -> float:
     idx = InvertedIndex()
     try:
         idx.load()
@@ -114,11 +114,9 @@ def idf_command(term: str) -> None:
 
     token_term = tokenize_word(term)
 
-    idf = idx.get_idf(token_term)
+    return  idx.get_idf(token_term)
 
-    print(f"Iverse document frequency of {term}: {idf:.2f}")
-
-def tfidf_command(doc_id: int, term: str) -> None:
+def tfidf_command(doc_id: int, term: str) -> float:
     idx = InvertedIndex()
     try:
         idx.load()
@@ -127,9 +125,7 @@ def tfidf_command(doc_id: int, term: str) -> None:
     tf = idx.get_tf(doc_id, term)
     idf = idx.get_idf(term)
 
-    tf_idf = tf * idf
-
-    print(f"Inverse document frequency of {term}: {tf_idf:.2f}")
+    return tf * idf
 
 def preprocess_text(text:str) -> str:
     text = text.lower()

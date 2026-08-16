@@ -43,11 +43,16 @@ def main() -> None:
             for i, res in enumerate(results, 1):
                 print(f"{i}. ID:{res['id']} {res['title']}")
         case "tf":
-            tf_command(args.doc_id, args.term)
+            tf = tf_command(args.doc_id, args.term)
+            print(f"Term frequency of '{args.term}' in document '{args.doc_id}': {tf}")
         case "idf":
-            idf_command(args.term)
+            idf = idf_command(args.term)
+            print(f"Inverse document frequency of '{args.term}': {idf:.2f}")
         case "tfidf":
-            tfidf_command(args.doc_id, args.term)
+            tf_idf = tfidf_command(args.doc_id, args.term)
+            print(
+                f"TF-IDF score of '{args.term}' in document '{args.doc_id}': {tf_idf:.2f}"
+            )
         case _:
             parser.print_help()
 
