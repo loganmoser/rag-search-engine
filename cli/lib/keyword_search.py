@@ -46,6 +46,9 @@ class InvertedIndex:
     def get_idf(self, term: str) -> float:
         return math.log((len(self.docmap) +1) / (len(self.get_documents(term)) + 1))
 
+    def get_bm25_idf(self, term:str) -> float:
+        return math.log((len(self.docmap) - len(self.get_documents(term)) + 0.5) / (len(self.get_documents(term)) + 0.5) + 1)
+
     def __add_document(self, doc_id: int, text: str) -> None:
         tokens = tokenize_text(text)
         self.term_frequencies[doc_id] = Counter(tokens)
@@ -126,6 +129,16 @@ def tfidf_command(doc_id: int, term: str) -> float:
     idf = idx.get_idf(term)
 
     return tf * idf
+
+def get_bm25_idf(term:str) -> float:
+    idx = InvertedIndex()
+    term = tokenize_word(term)
+    try:
+        idx.load()
+    except Exception as e:
+        print(f"Error loading index and docmap: {e}")
+
+    return idx.get_bm25_idf(term)
 
 def preprocess_text(text:str) -> str:
     text = text.lower()
