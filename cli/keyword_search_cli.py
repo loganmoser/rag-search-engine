@@ -1,5 +1,5 @@
 import argparse
-from lib.keyword_search import search_command, InvertedIndex, build_command
+from lib.keyword_search import search_command, InvertedIndex, build_command, tf_command
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Keyword Search CLI")
@@ -10,7 +10,13 @@ def main() -> None:
 
     subparsers.add_parser("build", help="Build InvertedIndex for TF-IDF")
 
+    term_parser = subparsers.add_parser("tf", help="Get term frequencies from a document for a term")
+    term_parser.add_argument("doc_id", type = int, help="document_id for tf")
+    term_parser.add_argument("term", type=str, help="term to search within a document")
+
     args = parser.parse_args()
+
+    print(args)
 
     match args.command:
         case "build":
@@ -23,6 +29,8 @@ def main() -> None:
             results = search_command(args.query)
             for i, res in enumerate(results, 1):
                 print(f"{i}. ID:{res['id']} {res['title']}")
+        case "tf":
+            tf_command(args.doc_id, args.term)
         case _:
             parser.print_help()
 
