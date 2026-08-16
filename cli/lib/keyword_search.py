@@ -119,7 +119,7 @@ def idf_command(term: str) -> None:
     print(f"Iverse document frequency of {term}: {idf:.2f}")
 
 def tfidf_command(doc_id: int, term: str) -> None:
-    idx = InvertedIndex
+    idx = InvertedIndex()
     try:
         idx.load()
     except Exception as e:
