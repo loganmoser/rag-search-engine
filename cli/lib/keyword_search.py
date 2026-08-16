@@ -5,6 +5,7 @@ import pickle
 import os
 from collections import defaultdict, Counter
 import sys
+import math
 
 stemmer = PorterStemmer()
 
@@ -41,6 +42,9 @@ class InvertedIndex:
 
     def get_tf(self, doc_id: int, term: str) -> int:
         return self.term_frequencies[doc_id][term]
+
+    def get_idf(self, term: str) -> float:
+        return math.log((len(self.docmap) +1) / (len(self.get_documents(term)) + 1))
 
     def __add_document(self, doc_id: int, text: str) -> None:
         tokens = tokenize_text(text)
@@ -96,11 +100,36 @@ def tf_command(doc_id: int, term:str) -> None:
     try:
         idx.load()
     except Exception as e:
-        print("Error loading  index and docmap")
+        print(f"Error loading  index and docmap: {e}")
         sys.exit(1)
 
     print(f"Term frequency for {term}: {idx.get_tf(doc_id, term)}")
 
+def idf_command(term: str) -> None:
+    idx = InvertedIndex()
+    try:
+        idx.load()
+    except Exception as e:
+        print(f'Error loading index and docmap: {e}')
+
+    token_term = tokenize_word(term)
+
+    idf = idx.get_idf(token_term)
+
+    print(f"Iverse document frequency of {term}: {idf:.2f}")
+
+def tfidf_command(doc_id: int, term: str) -> None:
+    idx = InvertedIndex
+    try:
+        idx.load()
+    except Exception as e:
+        print(f"Error loading index and docmap: {e}")
+    tf = idx.get_tf(doc_id, term)
+    idf = idx.get_idf(term)
+
+    tf_idf = tf * idf
+
+    print(f"Inverse document frequency of {term}: {tf_idf:.2f}")
 
 def preprocess_text(text:str) -> str:
     text = text.lower()
