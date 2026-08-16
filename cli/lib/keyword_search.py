@@ -4,6 +4,7 @@ from nltk.stem import PorterStemmer
 import pickle
 import os
 from collections import defaultdict
+import sys
 
 stemmer = PorterStemmer()
 
@@ -39,32 +40,43 @@ class InvertedIndex:
         for token in set(tokens):
             self.index[token].add(doc_id)
 
+    def load(self):
+        try:
+            with open(self.index_path, 'rb') as f:
+                self.index = pickle.load(f)
+            with open(self.docmap_path, 'rb') as f:
+                self.docmap = pickle.load(f)
+        except Exception as e:
+            print(f"Tried to read file. Error: {e}")
+
 
 def build_command() -> None:
     idx = InvertedIndex()
     idx.build()
     idx.save()
-    docs = idx.get_documents("merida")
-    print(f"First document for token 'merida' = {docs[0]}")
 
-def search_command(query: str, inverted_index: InvertedIndex, limit: int = DEFAULT_SEARCH_LIMIT) -> list[dict]:
-    
+
+def search_command(query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> list[dict]:
+    idx = InvertedIndex()
     try:
-        index, docmap = inverted_index.load()
-        print(docmap)
+        idx.load()
     except Exception as e:
         print(f'Error in load function: {e}')
-        exit
+        sys.exit(1)
     results = []
 
-    query_tokens = tokenize(query)
+    doc_ids = set()
+    query_tokens = tokenize_text(query)
     for token in query_tokens:
-        if token in index:
-            ids = index[token]
-            for id in ids:
-                results.append(docmap[id])
-                if len(results) >= limit:
-                    break
+        ids = idx.get_documents(token)
+        for id in ids:
+            if id in doc_ids:
+                continue
+            doc_ids.add(id)
+            doc = idx.docmap[id]
+            results.append(doc)
+            if len(results) >= limit:
+                return results
     return results
 
 

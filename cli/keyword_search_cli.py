@@ -11,8 +11,6 @@ def main() -> None:
     subparsers.add_parser("build", help="Build InvertedIndex for TF-IDF")
 
     args = parser.parse_args()
-    
-    inverted_index = InvertedIndex()
 
     match args.command:
         case "build":
@@ -22,9 +20,9 @@ def main() -> None:
         case "search":
             # print the search query here
             print(f"Searching for: {args.query}")
-            results = search_command(args.query, inverted_index=inverted_index)
+            results = search_command(args.query)
             for i, res in enumerate(results, 1):
-                print(f"{i}. {res['title']}")
+                print(f"{i}. ID:{res['id']} {res['title']}")
         case _:
             parser.print_help()
 
