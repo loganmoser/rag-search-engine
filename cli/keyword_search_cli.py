@@ -58,8 +58,6 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    print(args)
-
     match args.command:
         case "build":
             print("Building inverted index...")
