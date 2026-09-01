@@ -71,6 +71,13 @@ def search_command(query: str, limit: int):
     for i, result in enumerate(results):
         print(f"{i+1}. {result['title']} (score: {result['score']}){result['description'][:100]}...")
 
+def chunk_command(text: str, chunk_size: int) -> list[str]:
+    split_text = text.split(" ")
+    chunked_strings = []
+    for i in range(0, len(split_text), chunk_size):
+        chunked_strings.append(" ".join(split_text[i:i+chunk_size]))
+    return chunked_strings
+
 def cosine_similarity(vec1: np.ndarray, vec2: np.ndarray) -> float:
     dot_product = np.dot(vec1, vec2)
     norm1 = np.linalg.norm(vec1)

@@ -4,9 +4,9 @@ from lib.semantic_search import(
     verify_embeddings,
     embed_text,
     embed_query,
-    search_command
+    search_command,
+    chunk_command
 )
-    
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Semantic Search CLI")
@@ -31,6 +31,12 @@ def main() -> None:
     search_parser.add_argument("query", type=str, help="User query to search")
     search_parser.add_argument("--limit", nargs="?", default=5)
 
+    chunk_parser = subparsers.add_parser(
+            "chunk", help="Chunk text to improve ability to find good semantic matches."
+            )
+    chunk_parser.add_argument("text", type=str, help="Text to chunk")
+    chunk_parser.add_argument("--chunk-size", nargs="?", default=200, type=int)
+
     args = parser.parse_args()
 
     match args.command:
@@ -44,6 +50,11 @@ def main() -> None:
             embed_query(args.query)
         case "search":
             search_command(args.query, int(args.limit))
+        case "chunk":
+            results = chunk_command(args.text, int(args.chunk_size))
+            print(f"Chunking {len(args.text)} characters")
+            for i, result in enumerate(results):
+                print(f"{i+1}. {result}")
         case _:
             parser.print_help()
 
