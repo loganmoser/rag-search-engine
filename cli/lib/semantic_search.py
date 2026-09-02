@@ -5,6 +5,8 @@ import json
 from .search_utils import(
     MOVIE_EMBEDDINGS_PATH,
     DATA_PATH,
+    DEFAULT_CHUNK_OVERLAP,
+    DEFAULT_CHUNK_SIZE
 )
 
 class SemanticSearch:
@@ -71,11 +73,14 @@ def search_command(query: str, limit: int):
     for i, result in enumerate(results):
         print(f"{i+1}. {result['title']} (score: {result['score']}){result['description'][:100]}...")
 
-def chunk_command(text: str, chunk_size: int) -> list[str]:
+def chunk_command(text: str, chunk_size: int = DEFAULT_CHUNK_SIZE, overlap: int = DEFAULT_CHUNK_OVERLAP) -> list[str]:
     split_text = text.split(" ")
     chunked_strings = []
     for i in range(0, len(split_text), chunk_size):
-        chunked_strings.append(" ".join(split_text[i:i+chunk_size]))
+        if i > 0:
+            chunked_strings.append(" ".join(split_text[i-overlap:i+chunk_size]))
+        else:
+            chunked_strings.append(" ".join(split_text[i:i+chunk_size]))
     return chunked_strings
 
 def cosine_similarity(vec1: np.ndarray, vec2: np.ndarray) -> float:
