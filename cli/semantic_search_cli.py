@@ -5,7 +5,8 @@ from lib.semantic_search import(
     embed_text,
     embed_query,
     search_command,
-    chunk_command
+    chunk_command,
+    semantic_chunk
 )
 
 def main() -> None:
@@ -38,6 +39,13 @@ def main() -> None:
     chunk_parser.add_argument("--chunk-size", nargs="?", default=200, type=int)
     chunk_parser.add_argument("--overlap", nargs="?", default=0, type=int)
 
+    semantic_chunk_parser = subparsers.add_parser(
+        "semantic_chunk", help="Semantically chunk text given an overalp and chunk size"
+    )
+    semantic_chunk_parser.add_argument("text", type=str, help="Text to chunk")
+    semantic_chunk_parser.add_argument("--max-chunk-size", nargs="?", default=4, type=int)
+    semantic_chunk_parser.add_argument("--overlap", nargs="?", default=0, type=int)
+
     args = parser.parse_args()
 
     match args.command:
@@ -54,6 +62,11 @@ def main() -> None:
         case "chunk":
             results = chunk_command(args.text, int(args.chunk_size), int(args.overlap))
             print(f"Chunking {len(args.text)} characters")
+            for i, result in enumerate(results):
+                print(f"{i+1}. {result}")
+        case "semantic_chunk":
+            results = semantic_chunk(args.text, int(args.max_chunk_size), int(args.overlap))
+            print(f"Semantically chunking {len(args.text)} characters")
             for i, result in enumerate(results):
                 print(f"{i+1}. {result}")
         case _:

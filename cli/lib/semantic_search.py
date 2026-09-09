@@ -2,11 +2,13 @@ from sentence_transformers import SentenceTransformer
 import numpy as np
 import os
 import json
+import re
 from .search_utils import(
     MOVIE_EMBEDDINGS_PATH,
     DATA_PATH,
     DEFAULT_CHUNK_OVERLAP,
-    DEFAULT_CHUNK_SIZE
+    DEFAULT_CHUNK_SIZE,
+    DEFAULT_SEMANTIC_CHUNK_SIZE
 )
 
 class SemanticSearch:
@@ -72,6 +74,17 @@ def search_command(query: str, limit: int):
     results = semantic_instance.search(query, limit)
     for i, result in enumerate(results):
         print(f"{i+1}. {result['title']} (score: {result['score']}){result['description'][:100]}...")
+
+def semantic_chunk(text: str, max_chunk_size: int = DEFAULT_SEMANTIC_CHUNK_SIZE, overlap: int = 0):
+    sentences = re.split(r"(?<=[.!?])\s+", text)
+    chunks = []
+    for i in range(0, len(sentences), max_chunk_size):
+        if i > 0:
+            chunks.append(" ".join(sentences[i-overlap:i+max_chunk_size]))
+        else:
+            chunks.append(" ".join(sentences[i:i+max_chunk_size]))
+    return chunks
+    
 
 def chunk_command(text: str, chunk_size: int = DEFAULT_CHUNK_SIZE, overlap: int = DEFAULT_CHUNK_OVERLAP) -> list[str]:
     split_text = text.split(" ")
