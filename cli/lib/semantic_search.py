@@ -12,9 +12,11 @@ from .search_utils import(
     DEFAULT_CHUNK_OVERLAP,
     DEFAULT_CHUNK_SIZE,
     DEFAULT_SEMANTIC_CHUNK_SIZE,
+    DOCUMENT_PREVIEW_LENGTH,
     CHUNK_EMBEDDINGS_PATH,
     CHUNK_METADATA_PATH,
-    load_movies
+    load_movies,
+    format_search_result,
 )
 
 class SemanticSearch:
@@ -116,6 +118,42 @@ class ChunkedSemanticSearch(SemanticSearch):
         else:
             return self.build_chunk_embeddings(documents)
 
+    def search_chunks(self, query: str, limit: int = 10):
+        embeddings = self.generate_embedding(query)
+        chunk_scores: list[dict] = []
+
+        for i, doc in enumerate(self.chunk_embeddings):
+            score = cosine_similarity(doc, embeddings)
+            chunk_score = {
+                "chunk_idx": self.chunk_metadata.get('chunks')[i].get('chunk_idx'),
+                "movie_idx": self.chunk_metadata.get('chunks')[i].get('movie_idx'),
+                "score": score
+            }
+            chunk_scores.append(chunk_score)
+        best_scores = dict()
+        for score in chunk_scores:
+            if score.get("movie_idx") not in best_scores.keys() or score.get('score') > best_scores[score.get('movie_idx')].get('score'):
+                best_scores[score.get('movie_idx')] = score
+
+        sorted_scores = sorted(best_scores.values(), key = lambda x: x['score'], reverse = True)[:limit]
+        formated_results = [format_search_result(
+            score['movie_idx'],
+            self.documents[score['movie_idx']]['title'],
+            self.documents[score['movie_idx']]['description'][:DOCUMENT_PREVIEW_LENGTH],
+            score['score']
+        ) for score in sorted_scores]
+
+        return formated_results
+
+def search_chunked(query: str, limit: int) -> None:
+    chunked_search = ChunkedSemanticSearch()
+    movies = load_movies()
+    chunked_search.load_or_create_chunk_embeddings(movies)
+    results = chunked_search.search_chunks(query, limit)
+    for i, result in enumerate(results, start=1):
+        print(f"\n{i}. {result.get('title')} (score: {result.get('score'):.4f})")
+        print(f"{result.get('document')}...")
+
 def embed_chunks():
     chunked_search = ChunkedSemanticSearch()
     documents = load_movies()
@@ -133,11 +171,18 @@ def search_command(query: str, limit: int):
         print(f"{i+1}. {result['title']} (score: {result['score']}){result['description'][:100]}...")
 
 def semantic_chunk(text: str, max_chunk_size: int = DEFAULT_SEMANTIC_CHUNK_SIZE, overlap: int = 0):
+    text = text.strip()
+    if not text:
+        return []
     sentences = re.split(r"(?<=[.!?])\s+", text)
+    if len(sentences) == 1 and not sentences[0].endswith(('.','?','!')):
+        sentences = sentences[0] #This may be wrong
     chunks = []
     for i in range(0, len(sentences), max_chunk_size-overlap):
-        chunked_sentence = sentences[i:+i+max_chunk_size]
-        chunks.append(" ".join(chunked_sentence))
+        chunked_sentence = " ".join(sentences[i:+i+max_chunk_size]).strip()
+        if not chunked_sentence:
+            continue
+        chunks.append(chunked_sentence)
         if i+max_chunk_size >= len(sentences):
             break
     return chunks
