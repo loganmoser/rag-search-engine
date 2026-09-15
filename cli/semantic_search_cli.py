@@ -6,7 +6,8 @@ from lib.semantic_search import(
     embed_query,
     search_command,
     chunk_command,
-    semantic_chunk
+    semantic_chunk,
+    embed_chunks
 )
 
 def main() -> None:
@@ -19,7 +20,7 @@ def main() -> None:
         "embed_text", help="Create word embeddings for semantic search"
     )
     embed_parser.add_argument("text", type=str, help="Text to embed")
-    
+
     verify_embeddings_parser = subparsers.add_parser(
         "verify_embeddings", help="Verify document embeddings using semantic model"
     )
@@ -46,6 +47,10 @@ def main() -> None:
     semantic_chunk_parser.add_argument("--max-chunk-size", nargs="?", default=4, type=int)
     semantic_chunk_parser.add_argument("--overlap", nargs="?", default=0, type=int)
 
+    embed_chunk_parser = subparsers.add_parser(
+        "embed_chunks", help="Use semantic embedding on chunked document to do chunked semantic search"
+    )
+
     args = parser.parse_args()
 
     match args.command:
@@ -69,6 +74,8 @@ def main() -> None:
             print(f"Semantically chunking {len(args.text)} characters")
             for i, result in enumerate(results):
                 print(f"{i+1}. {result}")
+        case "embed_chunks":
+            embed_chunks()
         case _:
             parser.print_help()
 

@@ -1,14 +1,20 @@
+from ast import Break
+
 from sentence_transformers import SentenceTransformer
 import numpy as np
 import os
 import json
 import re
 from .search_utils import(
+    Movie,
     MOVIE_EMBEDDINGS_PATH,
     DATA_PATH,
     DEFAULT_CHUNK_OVERLAP,
     DEFAULT_CHUNK_SIZE,
-    DEFAULT_SEMANTIC_CHUNK_SIZE
+    DEFAULT_SEMANTIC_CHUNK_SIZE,
+    CHUNK_EMBEDDINGS_PATH,
+    CHUNK_METADATA_PATH,
+    load_movies
 )
 
 class SemanticSearch:
@@ -59,11 +65,62 @@ class SemanticSearch:
 
         sorted_scores = sorted(scores, key = lambda x: x[0], reverse=True)[:limit]
 
-        results = [{"score": score, 
-                    "title": self.document_map[i]['title'], 
+        results = [{"score": score,
+                    "title": self.document_map[i]['title'],
                     "description": self.document_map[i]['description']} for score, i in sorted_scores]
 
         return results
+
+class ChunkedSemanticSearch(SemanticSearch):
+    def __init__(self, model_name: str = "all-MiniLM-L6-v2") -> None:
+        super().__init__(model_name)
+        self.chunk_embeddings = None
+        self.chunk_metadata = None
+
+    def build_chunk_embeddings(self, documents: list[Movie]) -> np.ndarray:
+        self.documents = documents
+        for i, doc in enumerate(self.documents):
+            self.document_map[i] = doc
+        all_chunks: list[str] = []
+        metadata: list[dict] = []
+
+        for i, doc in enumerate(self.documents):
+            desc = doc.get('description')
+            if not desc:
+                continue # If document description is empty, skip it
+            doc_chunks = semantic_chunk(desc, 4, 1)
+            for j, chunk in enumerate(doc_chunks):
+                all_chunks.append(chunk)
+                chunk_metadata = {"movie_idx": i,
+                    "chunk_idx": j,
+                    "total_chunks": len(doc_chunks)}
+                metadata.append(chunk_metadata)
+        self.chunk_embeddings = self.model.encode(all_chunks, show_progress_bar=True)
+        self.chunk_metadata = metadata
+        np.save(CHUNK_EMBEDDINGS_PATH, self.chunk_embeddings)
+        with open(CHUNK_METADATA_PATH, 'w') as f:
+            json.dump({"chunks": self.chunk_metadata, "total_chunks": len(all_chunks)}, f, indent=2)
+
+        return self.chunk_embeddings
+
+    def load_or_create_chunk_embeddings(self, documents: list[Movie]) -> np.ndarray:
+        self.documents = documents
+        for i, doc in enumerate(self.documents):
+            self.document_map[i] = doc
+        if os.path.isfile(CHUNK_EMBEDDINGS_PATH) and os.path.isfile(CHUNK_METADATA_PATH):
+            self.chunk_embeddings = np.load(CHUNK_EMBEDDINGS_PATH)
+            with open(CHUNK_METADATA_PATH, 'r') as f:
+                self.chunk_metadata = json.load(f)
+            if len(self.chunk_embeddings) == len(documents):
+                return self.chunk_embeddings
+        else:
+            return self.build_chunk_embeddings(documents)
+
+def embed_chunks():
+    chunked_search = ChunkedSemanticSearch()
+    documents = load_movies()
+    chunked_search.load_or_create_chunk_embeddings(documents)
+    print(f"Generated {len(chunked_search.chunk_embeddings)} chunked embeddings")
 
 
 def search_command(query: str, limit: int):
@@ -78,22 +135,19 @@ def search_command(query: str, limit: int):
 def semantic_chunk(text: str, max_chunk_size: int = DEFAULT_SEMANTIC_CHUNK_SIZE, overlap: int = 0):
     sentences = re.split(r"(?<=[.!?])\s+", text)
     chunks = []
-    for i in range(0, len(sentences), max_chunk_size):
-        if i > 0:
-            chunks.append(" ".join(sentences[i-overlap:i+max_chunk_size]))
-        else:
-            chunks.append(" ".join(sentences[i:i+max_chunk_size]))
+    for i in range(0, len(sentences), max_chunk_size-overlap):
+        chunked_sentence = sentences[i:+i+max_chunk_size]
+        chunks.append(" ".join(chunked_sentence))
+        if i+max_chunk_size >= len(sentences):
+            break
     return chunks
-    
+
 
 def chunk_command(text: str, chunk_size: int = DEFAULT_CHUNK_SIZE, overlap: int = DEFAULT_CHUNK_OVERLAP) -> list[str]:
     split_text = text.split(" ")
     chunked_strings = []
-    for i in range(0, len(split_text), chunk_size):
-        if i > 0:
-            chunked_strings.append(" ".join(split_text[i-overlap:i+chunk_size]))
-        else:
-            chunked_strings.append(" ".join(split_text[i:i+chunk_size]))
+    for i in range(0, len(split_text), chunk_size-overlap):
+        chunked_strings.append(" ".join(split_text[i:i+chunk_size]))
     return chunked_strings
 
 def cosine_similarity(vec1: np.ndarray, vec2: np.ndarray) -> float:
