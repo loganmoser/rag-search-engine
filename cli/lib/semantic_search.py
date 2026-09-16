@@ -112,7 +112,8 @@ class ChunkedSemanticSearch(SemanticSearch):
         if os.path.isfile(CHUNK_EMBEDDINGS_PATH) and os.path.isfile(CHUNK_METADATA_PATH):
             self.chunk_embeddings = np.load(CHUNK_EMBEDDINGS_PATH)
             with open(CHUNK_METADATA_PATH, 'r') as f:
-                self.chunk_metadata = json.load(f)
+                data = json.load(f)
+                self.chunk_metadata = data['chunks']
             if len(self.chunk_embeddings) == len(documents):
                 return self.chunk_embeddings
         else:
@@ -125,8 +126,8 @@ class ChunkedSemanticSearch(SemanticSearch):
         for i, doc in enumerate(self.chunk_embeddings):
             score = cosine_similarity(doc, embeddings)
             chunk_score = {
-                "chunk_idx": self.chunk_metadata.get('chunks')[i].get('chunk_idx'),
-                "movie_idx": self.chunk_metadata.get('chunks')[i].get('movie_idx'),
+                "chunk_idx": self.chunk_metadata[i].get('chunk_idx'),
+                "movie_idx": self.chunk_metadata[i].get('movie_idx'),
                 "score": score
             }
             chunk_scores.append(chunk_score)

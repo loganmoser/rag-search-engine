@@ -25,7 +25,7 @@ class InvertedIndex:
         self.index = defaultdict(set)
         self.docmap: dict[int, dict] = {}
         self.term_frequencies: dict(int, Counter) = defaultdict(Counter)
-        self.doc_lengths = {}
+        self.doc_lengths: dict[int, int] = {}
         self.index_path = os.path.join(CACHE_DIR, "index.pkl")
         self.docmap_path = os.path.join(CACHE_DIR, "docmap.pkl")
         self.term_freq_path = os.path.join(CACHE_DIR, "term_frequencies.pkl")
@@ -99,8 +99,8 @@ class InvertedIndex:
             results.append(formatted_result)
 
         return results
-        
-        
+
+
     def __add_document(self, doc_id: int, text: str) -> None:
         tokens = tokenize_text(text)
         self.doc_lengths[doc_id] = len(tokens)
@@ -109,7 +109,7 @@ class InvertedIndex:
             self.index[token].add(doc_id)
 
     def __get_avg_doc_length(self) -> float:
-        if len(self.doc_lengths) == 0:
+        if len(self.doc_lengths) == 0 or not self.doc_lengths:
             return 0.0
         return sum(self.doc_lengths.values()) / len(self.doc_lengths)
 
@@ -159,7 +159,7 @@ def search_command(query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> list[dict]:
 def tf_command(doc_id: int, term:str) -> int:
     idx = InvertedIndex()
     token_term = tokenize_word(term)
-    
+
     try:
         idx.load()
     except Exception as e:
@@ -217,7 +217,7 @@ def bm25_search_command(query: str, limit: int = 5) -> dict[int: int]:
         idx.load()
     except Exception as e:
         print("Error loading index: {e}")
-    
+
     results = idx.bm25_search(query, limit)
     return results
 
@@ -238,4 +238,3 @@ def tokenize_word(text: str) -> str:
     if len(text) != 1:
         raise Exception("Tokenizer didn't return just one word")
     return text[0]
-
