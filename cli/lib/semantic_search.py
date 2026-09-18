@@ -138,7 +138,7 @@ class ChunkedSemanticSearch(SemanticSearch):
 
         sorted_scores = sorted(best_scores.values(), key = lambda x: x['score'], reverse = True)[:limit]
         formated_results = [format_search_result(
-            score['movie_idx'],
+            self.documents[score['movie_idx']]['id'],
             self.documents[score['movie_idx']]['title'],
             self.documents[score['movie_idx']]['description'][:DOCUMENT_PREVIEW_LENGTH],
             score['score']
