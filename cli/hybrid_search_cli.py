@@ -3,6 +3,7 @@ import argparse
 from lib.hybrid_search import (
     normalize_scores,
     weighted_search,
+    rrf_search,
 )
 
 
@@ -18,6 +19,11 @@ def main() -> None:
     weighted_search_parser.add_argument("--alpha", nargs="?", type=float, default=0.5, help="dynamically controls the weighting of the two scores")
     weighted_search_parser.add_argument("--limit", nargs="?", type=int, default=5)
 
+    rff_search_parser = subparsers.add_parser("rrf-search", help="Use Reverse Rank Fusion Search")
+    rff_search_parser.add_argument("query", type=str, help="Query to score")
+    rff_search_parser.add_argument("-k", nargs="?", type=int, default=60, help="Constant used to scale rankings. 60 by default")
+    rff_search_parser.add_argument("--limit", nargs="?", type=int, default=5, help="Number of results to return. Defaults to 5")
+
     args = parser.parse_args()
 
     match args.command:
@@ -27,6 +33,8 @@ def main() -> None:
                 print(f"* {score:.4f}")
         case "weighted-search":
             weighted_search(args.query, args.alpha, args.limit)
+        case "rrf-search":
+            rrf_search(args.query, args.k, args.limit)
         case _:
             parser.print_help()
 
