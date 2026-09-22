@@ -23,6 +23,7 @@ def main() -> None:
     rff_search_parser.add_argument("query", type=str, help="Query to score")
     rff_search_parser.add_argument("-k", nargs="?", type=int, default=60, help="Constant used to scale rankings. 60 by default")
     rff_search_parser.add_argument("--limit", nargs="?", type=int, default=5, help="Number of results to return. Defaults to 5")
+    rff_search_parser.add_argument("--enhance", type=str, choices=["spell", "rewrite"], help="Query enhancement method")
 
     args = parser.parse_args()
 
@@ -34,7 +35,7 @@ def main() -> None:
         case "weighted-search":
             weighted_search(args.query, args.alpha, args.limit)
         case "rrf-search":
-            rrf_search(args.query, args.k, args.limit)
+            rrf_search(args.query, args.k, args.limit, args.enhance)
         case _:
             parser.print_help()
 

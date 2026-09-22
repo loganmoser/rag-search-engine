@@ -1,4 +1,6 @@
 import os
+from dotenv import load_dotenv
+from openai import OpenAI
 
 from .keyword_search import InvertedIndex
 from .semantic_search import ChunkedSemanticSearch
@@ -109,15 +111,86 @@ class HybridSearch:
         return sorted_results
         
 
-def rrf_search(query: str, k: int = 60, limit: int = 5):
+def rrf_search(query: str, k: int = 60, limit: int = 5, enhance: str = None):
     documents = load_movies()
     hybrid_search = HybridSearch(documents)
-    results = hybrid_search.rrf_search(query, k, limit)
-    for i, result in enumerate(results, 1):
-        print(f"{i}.  {result['doc']['title']}\n  RRF Score: {result['rrf_score']}\n  BM25 Rank: {result['bm25_rank']}, Semantic Rank: {result['semantic_rank']}\n  {result['doc']['document'][:50]}")
+    load_dotenv()
+    api_key = os.environ.get("OPENROUTER_API_KEY")
+    client = OpenAI(
+        base_url = "https://openrouter.ai/api/v1",
+        api_key=api_key
+    )
 
+    if not api_key:
+        raise RuntimeError("OPENROUTER_API_KEY environment variable not set")
+    match enhance:
+        case "spell":
+            messages = [
+                {
+                    "role": "user",
+                    "content":f"""Fix any spelling errors in the user-provided movie search query below.
+                                Correct only clear, high-confidence typos. Do not rewrite, add, remove, or reorder words.
+                                Preserve punctuation and capitalization unless a change is required for a typo fix.
+                                If there are no spelling errors, or if you're unsure, output the original query unchanged.
+                                Output only the final query text, nothing else.
+                                User query: "{query}"
+                                """
+                }
+            ]
 
+            response = client.chat.completions.create(
+                model='openrouter/free',
+                messages=messages
+            )
+            enhanced_query = response.choices[0].message.content
+            
+            print(f"Enhanced query ({enhance}: '{query}' -> '{enhanced_query}')\n")
 
+            results = hybrid_search.rrf_search(enhanced_query, k, limit)
+            for i, result in enumerate(results, 1):
+                print(f"{i}.  {result['doc']['title']}\n  RRF Score: {result['rrf_score']}\n  BM25 Rank: {result['bm25_rank']}, Semantic Rank: {result['semantic_rank']}\n  {result['doc']['document'][:50]}")
+        case "rewrite":
+            messages = [
+                {
+                    "role": "user",
+                    "content": f"""Rewrite the user-provided movie search query below to be more specific and searchable.
+
+                        Consider:
+                        - Common movie knowledge (famous actors, popular films)
+                        - Genre conventions (horror = scary, animation = cartoon)
+                        - Keep the rewritten query concise (under 10 words)
+                        - It should be a Google-style search query, specific enough to yield relevant results
+                        - Don't use boolean logic
+
+                        Examples:
+                        - "that bear movie where leo gets attacked" -> "The Revenant Leonardo DiCaprio bear attack"
+                        - "movie about bear in london with marmalade" -> "Paddington London marmalade"
+                        - "scary movie with bear from few years ago" -> "bear horror movie 2015-2020"
+
+                        If you cannot improve the query, output the original unchanged.
+                        Output only the rewritten query text, nothing else.
+
+                        User query: "{query}"
+"""               }
+            ]
+
+            response = client.chat.completions.create(
+                model='openrouter/free',
+                messages=messages
+            )
+            enhanced_query = response.choices[0].message.content
+            
+            print(f"Enhanced query ({enhance}: '{query}' -> '{enhanced_query}')\n")
+
+            results = hybrid_search.rrf_search(enhanced_query, k, limit)
+            for i, result in enumerate(results, 1):
+                print(f"{i}.  {result['doc']['title']}\n  RRF Score: {result['rrf_score']}\n  BM25 Rank: {result['bm25_rank']}, Semantic Rank: {result['semantic_rank']}\n  {result['doc']['document'][:50]}")
+
+        case _:
+            results = hybrid_search.rrf_search(query, k, limit)
+            for i, result in enumerate(results, 1):
+                print(f"{i}.  {result['doc']['title']}\n  RRF Score: {result['rrf_score']}\n  BM25 Rank: {result['bm25_rank']}, Semantic Rank: {result['semantic_rank']}\n  {result['doc']['document'][:50]}")
+   
 def weighted_search(query: str, alpha: float, limit: int = 5) -> None:
     documents = load_movies()
     hybrid_search = HybridSearch(documents)
