@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
+import time
 
 from .keyword_search import InvertedIndex
 from .semantic_search import ChunkedSemanticSearch
@@ -111,9 +112,12 @@ class HybridSearch:
         return sorted_results
         
 
-def rrf_search(query: str, k: int = 60, limit: int = 5, enhance: str = None):
+def rrf_search(query: str, k: int = 60, limit: int = 5, enhance: str = None, rerank_method: str = None):
     documents = load_movies()
     hybrid_search = HybridSearch(documents)
+    # if rerank_method = individual, get 5 times the limit
+    if rerank_method == "individual":
+        limit = limit * 5
     load_dotenv()
     api_key = os.environ.get("OPENROUTER_API_KEY")
     client = OpenAI(
@@ -147,8 +151,6 @@ def rrf_search(query: str, k: int = 60, limit: int = 5, enhance: str = None):
             print(f"Enhanced query ({enhance}: '{query}' -> '{enhanced_query}')\n")
 
             results = hybrid_search.rrf_search(enhanced_query, k, limit)
-            for i, result in enumerate(results, 1):
-                print(f"{i}.  {result['doc']['title']}\n  RRF Score: {result['rrf_score']}\n  BM25 Rank: {result['bm25_rank']}, Semantic Rank: {result['semantic_rank']}\n  {result['doc']['document'][:50]}")
         case "rewrite":
             messages = [
                 {
@@ -183,8 +185,6 @@ def rrf_search(query: str, k: int = 60, limit: int = 5, enhance: str = None):
             print(f"Enhanced query ({enhance}: '{query}' -> '{enhanced_query}')\n")
 
             results = hybrid_search.rrf_search(enhanced_query, k, limit)
-            for i, result in enumerate(results, 1):
-                print(f"{i}.  {result['doc']['title']}\n  RRF Score: {result['rrf_score']}\n  BM25 Rank: {result['bm25_rank']}, Semantic Rank: {result['semantic_rank']}\n  {result['doc']['document'][:50]}")
         case "expand":
                 messages = [
                 {
@@ -207,7 +207,8 @@ def rrf_search(query: str, k: int = 60, limit: int = 5, enhance: str = None):
                         Output only the rewritten query text, nothing else.
 
                         User query: "{query}"
-                        """               }
+                        """
+                }
                 ]
                 response = client.chat.completions.create(
                     model='openrouter/free',
@@ -216,10 +217,50 @@ def rrf_search(query: str, k: int = 60, limit: int = 5, enhance: str = None):
                 enhanced_query = response.choices[0].message.content
                 print(f"Enhanced query ({enhance}: '{query}' -> '{enhanced_query}')\n")
                 results = hybrid_search.rrf_search(enhanced_query, k, limit)
-                for i, result in enumerate(results, 1):
-                    print(f"{i}.  {result['doc']['title']}\n  RRF Score: {result['rrf_score']}\n  BM25 Rank: {result['bm25_rank']}, Semantic Rank: {result['semantic_rank']}\n  {result['doc']['document'][:50]}")
         case _:
             results = hybrid_search.rrf_search(query, k, limit)
+        # Possibly re-rank results using an llm
+    match rerank_method:
+        case "individual":
+            rerank_scores: list[dict] = []
+            # Iterate through documents and feed through llm to re-rank them based on ssytem query
+            for doc in results:
+                messages = [
+                    {
+                        "role": "user",
+                        "content": f"""Rate how well this movie matches the search query.
+
+                        Query: "{query}"
+                        Movie: {doc.get("title", "")} - {doc.get("document", "")}
+
+                        Consider:
+                        - Direct relevance to query
+                        - User intent (what they're looking for)
+                        - Content appropriateness
+
+                        Rate 0-10 (10 = perfect match).
+                        Output ONLY the number in your response, no other text or explanation.
+                        Score:"""
+                    }
+                ]
+                rerank_response = client.chat.completions.create(
+                    model = "openrouter/free",
+                    messages=messages
+                )
+                rerank_score = rerank_response.choices[0].message.content
+                doc['rerank_score'] = rerank_score
+                rerank_scores.append(doc)
+                time.sleep(3)
+            sorted_reranked_scores = sorted(rerank_scores.items(), key = lambda x: x['rerank_score'], reverse=True)[:limit]
+            print(f"Re-ranking the top {limit} results using {rerank_method} method...")
+            print(f"Reciprocal Rank Fusion Results for {query} (k={k})")
+            for i, doc in enumerate(sorted_reranked_scores, 1):
+                print(f"""{i}. {doc['title']}
+                      Re-rank score: {doc['rerank_score']}
+                      RRF Score: {doc['rrf_score']}
+                      BM25 Rank: {doc['bm25_rank']}, Semantic Rank: {doc['semantic_rank']}
+                      {doc['desc'][:50]}...""")
+        case _:
             for i, result in enumerate(results, 1):
                 print(f"{i}.  {result['doc']['title']}\n  RRF Score: {result['rrf_score']}\n  BM25 Rank: {result['bm25_rank']}, Semantic Rank: {result['semantic_rank']}\n  {result['doc']['document'][:50]}")
    
