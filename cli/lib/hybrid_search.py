@@ -119,6 +119,7 @@ def rrf_search(query: str, k: int = 60, limit: int = 5, enhance: str = None, rer
     hybrid_search = HybridSearch(documents)
     # if rerank_method = individual, get 5 times the limit
     if rerank_method:
+        final_limit = limit
         limit = limit * 5
     load_dotenv()
     api_key = os.environ.get("OPENROUTER_API_KEY")
@@ -254,7 +255,7 @@ def rrf_search(query: str, k: int = 60, limit: int = 5, enhance: str = None, rer
                 doc['rerank_score'] = rerank_score
                 rerank_scores.append(doc)
                 time.sleep(3)
-            sorted_reranked_scores = sorted(rerank_scores, key = lambda x: x['rerank_score'], reverse=True)[:limit]
+            sorted_reranked_scores = sorted(rerank_scores, key = lambda x: x['rerank_score'], reverse=True)[:final_limit]
             print(f"Re-ranking the top {limit} results using {rerank_method} method...")
             print(f"Reciprocal Rank Fusion Results for {query} (k={k})")
             for i, doc in enumerate(sorted_reranked_scores, 1):
@@ -294,7 +295,7 @@ def rrf_search(query: str, k: int = 60, limit: int = 5, enhance: str = None, rer
                messages=messages
             )
             rankings = json.loads(response.choices[0].message.content)
-            sorted_rankings = sorted(rankings)[:limit]
+            sorted_rankings = sorted(rankings)[:final_limit]
             top_docs = [doc for doc in results if doc['doc']['id'] in sorted_rankings]
             for i, doc in enumerate(top_docs, 1):
                 doc_data = doc['doc']
@@ -313,15 +314,15 @@ def rrf_search(query: str, k: int = 60, limit: int = 5, enhance: str = None, rer
             scores = cross_encoder.predict(pairs)
             for score, doc in zip(scores, results):
                 doc['cross_encoder_score'] = score
-            sorted_scores = sorted(results, key = lambda x: x['cross_encoder_score'], reverse=True)[:limit]
+            sorted_scores = sorted(results, key = lambda x: x['cross_encoder_score'], reverse=True)[:final_limit]
             print(f"Re-ranking top {limit} results using {rerank_method} method...")
             print(f"Reciprocal Rank Fusion Results for {query} (k={k})")
             for i, doc in enumerate(sorted_scores, 1):
                 print(f"""{i}. {doc.get('doc', '').get('title', '')}
-                    Cross Encoder Score: {doc['cross_encoder_score']}
-                    RRF Score: {doc['rrf_score']}
-                    BM25 Rank: {doc['bm25_rank']}, Semantic Rank: {doc['semantic_rank']}
-                    {doc['doc']['document'][:50]}...""")
+                Cross Encoder Score: {doc['cross_encoder_score']}
+                RRF Score: {doc['rrf_score']}
+                BM25 Rank: {doc['bm25_rank']}, Semantic Rank: {doc['semantic_rank']}
+                {doc['doc']['document'][:50]}...""")
         case _:
             for i, result in enumerate(results, 1):
                 print(f"{i}.  {result['doc']['title']}\n  RRF Score: {result['rrf_score']}\n  BM25 Rank: {result['bm25_rank']}, Semantic Rank: {result['semantic_rank']}\n  {result['doc']['document'][:50]}")
