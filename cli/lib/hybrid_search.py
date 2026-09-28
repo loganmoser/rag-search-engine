@@ -251,15 +251,16 @@ def rrf_search(query: str, k: int = 60, limit: int = 5, enhance: str = None, rer
                 doc['rerank_score'] = rerank_score
                 rerank_scores.append(doc)
                 time.sleep(3)
-            sorted_reranked_scores = sorted(rerank_scores.items(), key = lambda x: x['rerank_score'], reverse=True)[:limit]
+            sorted_reranked_scores = sorted(rerank_scores, key = lambda x: x['rerank_score'], reverse=True)[:limit]
             print(f"Re-ranking the top {limit} results using {rerank_method} method...")
             print(f"Reciprocal Rank Fusion Results for {query} (k={k})")
             for i, doc in enumerate(sorted_reranked_scores, 1):
-                print(f"""{i}. {doc['title']}
+                doc_data = doc['doc'] # Adding the whole document to the list above means we need to get individual doc items here
+                print(f"""{i}. {doc_data['title']}
                       Re-rank score: {doc['rerank_score']}
                       RRF Score: {doc['rrf_score']}
                       BM25 Rank: {doc['bm25_rank']}, Semantic Rank: {doc['semantic_rank']}
-                      {doc['desc'][:50]}...""")
+                      {doc_data['document'][:50]}...""")
         case _:
             for i, result in enumerate(results, 1):
                 print(f"{i}.  {result['doc']['title']}\n  RRF Score: {result['rrf_score']}\n  BM25 Rank: {result['bm25_rank']}, Semantic Rank: {result['semantic_rank']}\n  {result['doc']['document'][:50]}")
