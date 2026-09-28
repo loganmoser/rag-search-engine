@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 import time
 import json
+from sentence_transformers import CrossEncoder
 
 from .keyword_search import InvertedIndex
 from .semantic_search import ChunkedSemanticSearch
@@ -174,7 +175,8 @@ def rrf_search(query: str, k: int = 60, limit: int = 5, enhance: str = None, rer
                         Output only the rewritten query text, nothing else.
 
                         User query: "{query}"
-"""               }
+                        """
+                }
             ]
 
             response = client.chat.completions.create(
@@ -301,6 +303,25 @@ def rrf_search(query: str, k: int = 60, limit: int = 5, enhance: str = None, rer
                       RRF Score: {doc['rrf_score']}
                       BM25 Rank: {doc['bm25_rank']}, Semantic Rank: {doc['semantic_rank']}
                       {doc_data['document'][:50]}...f""")
+        case "cross_encoder":
+            pairs = []
+            cross_encoder = CrossEncoder("cross-encoder/ms-marco-TinyBERT-L2-v2")
+            for doc in results:
+                title = doc.get('doc').get('title', '')
+                document = doc.get('doc').get('document', '')
+                pairs.append([query, f"{title}- {document}"])
+            scores = cross_encoder.predict(pairs)
+            for score, doc in zip(scores, results):
+                doc['cross_encoder_score'] = score
+            sorted_scores = sorted(results, key = lambda x: x['cross_encoder_score'], reverse=True)[:limit]
+            print(f"Re-ranking top {limit} results using {rerank_method} method...")
+            print(f"Reciprocal Rank Fusion Results for {query} (k={k})")
+            for i, doc in enumerate(sorted_scores, 1):
+                print(f"""{i}. {doc.get('doc', '').get('title', '')}
+                    Cross Encoder Score: {doc['cross_encoder_score']}
+                    RRF Score: {doc['rrf_score']}
+                    BM25 Rank: {doc['bm25_rank']}, Semantic Rank: {doc['semantic_rank']}
+                    {doc['doc']['document'][:50]}...""")
         case _:
             for i, result in enumerate(results, 1):
                 print(f"{i}.  {result['doc']['title']}\n  RRF Score: {result['rrf_score']}\n  BM25 Rank: {result['bm25_rank']}, Semantic Rank: {result['semantic_rank']}\n  {result['doc']['document'][:50]}")
