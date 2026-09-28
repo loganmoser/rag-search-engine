@@ -27,12 +27,9 @@ def main() -> None:
         results = rrf_search(query, 60, limit)
         titles = set(doc.get('doc').get('title') for doc in results)
         docs_found = len(relevant_docs.intersection(titles))
-        precision = docs_found / len(results)
+        precision = round(docs_found / len(results), 4)
 
-        print(f"""- Query: {query}
-            - Precision@6: {precision}
-            - Retrieved: {' '.join(titles)}
-            - Relevant: {' '.join(relevant_docs)}""")
+        print(f"""- Query: {query}\n  - Precision@{limit}: {precision}\n  - Retrieved: {' '.join(titles)}\n  - Relevant: {' '.join(relevant_docs)}""")
 
 
 if __name__ == "__main__":

@@ -36,7 +36,39 @@ def main() -> None:
         case "weighted-search":
             weighted_search(args.query, args.alpha, args.limit)
         case "rrf-search":
-            rrf_search(args.query, args.k, args.limit, args.enhance, args.rerank_method)
+            results = rrf_search(args.query, args.k, args.limit, args.enhance, args.rerank_method)
+
+            match args.rerank_method:
+                case "individual":
+                    print(f"Re-ranking the top {args.limit} results using {args.rerank_method} method...")
+                    print(f"Reciprocal Rank Fusion Results for {args.query} (k={args.k})")
+                    for i, doc in enumerate(results, 1):
+                        doc_data = doc['doc'] # Adding the whole document to the list above means we need to get individual doc items here
+                        print(f"""{i}. {doc_data['title']}
+                                Re-rank score: {doc['rerank_score']}
+                                RRF Score: {doc['rrf_score']}
+                                BM25 Rank: {doc['bm25_rank']}, Semantic Rank: {doc['semantic_rank']}
+                                {doc_data['document'][:50]}...""")
+                case "batch":
+                    for i, doc in enumerate(results, 1):
+                        doc_data = doc['doc']
+                        print(f"""{i}. {doc_data['title']}
+                              Re-rank Rank: {i}
+                              RRF Score: {doc['rrf_score']}
+                              BM25 Rank: {doc['bm25_rank']}, Semantic Rank: {doc['semantic_rank']}
+                              {doc_data['document'][:50]}...f""")
+                case "cross_encoder":
+                    print(f"Re-ranking top {limit} results using {rerank_method} method...")
+                    print(f"Reciprocal Rank Fusion Results for {query} (k={k})")
+                    for i, doc in enumerate(sorted_scores, 1):
+                        print(f"""{i}. {doc.get('doc', '').get('title', '')}
+                        Cross Encoder Score: {doc['cross_encoder_score']}
+                        RRF Score: {doc['rrf_score']}
+                        BM25 Rank: {doc['bm25_rank']}, Semantic Rank: {doc['semantic_rank']}
+                        {doc['doc']['document'][:50]}...""")
+                case _:
+                    for i, result in enumerate(results, 1):
+                        print(f"{i}.  {result['doc']['title']}\n  RRF Score: {result['rrf_score']}\n  BM25 Rank: {result['bm25_rank']}, Semantic Rank: {result['semantic_rank']}\n  {result['doc']['document'][:50]}")
         case _:
             parser.print_help()
 

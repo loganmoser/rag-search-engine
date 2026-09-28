@@ -256,15 +256,7 @@ def rrf_search(query: str, k: int = 60, limit: int = 5, enhance: str = None, rer
                 rerank_scores.append(doc)
                 time.sleep(3)
             sorted_reranked_scores = sorted(rerank_scores, key = lambda x: x['rerank_score'], reverse=True)[:final_limit]
-            print(f"Re-ranking the top {limit} results using {rerank_method} method...")
-            print(f"Reciprocal Rank Fusion Results for {query} (k={k})")
-            for i, doc in enumerate(sorted_reranked_scores, 1):
-                doc_data = doc['doc'] # Adding the whole document to the list above means we need to get individual doc items here
-                print(f"""{i}. {doc_data['title']}
-                      Re-rank score: {doc['rerank_score']}
-                      RRF Score: {doc['rrf_score']}
-                      BM25 Rank: {doc['bm25_rank']}, Semantic Rank: {doc['semantic_rank']}
-                      {doc_data['document'][:50]}...""")
+            return sorted_ranked_scores
         case "batch":
             documents = [doc['doc'] for doc in results]
             doc_list_str = ' '.join(' '.join(f"{k}:{v}" for k,v in doc.items()) for doc in documents)
@@ -297,13 +289,8 @@ def rrf_search(query: str, k: int = 60, limit: int = 5, enhance: str = None, rer
             rankings = json.loads(response.choices[0].message.content)
             sorted_rankings = sorted(rankings)[:final_limit]
             top_docs = [doc for doc in results if doc['doc']['id'] in sorted_rankings]
-            for i, doc in enumerate(top_docs, 1):
-                doc_data = doc['doc']
-                print(f"""{i}. {doc_data['title']}
-                      Re-rank Rank: {i}
-                      RRF Score: {doc['rrf_score']}
-                      BM25 Rank: {doc['bm25_rank']}, Semantic Rank: {doc['semantic_rank']}
-                      {doc_data['document'][:50]}...f""")
+            return top_docs
+
         case "cross_encoder":
             pairs = []
             cross_encoder = CrossEncoder("cross-encoder/ms-marco-TinyBERT-L2-v2")
@@ -315,18 +302,10 @@ def rrf_search(query: str, k: int = 60, limit: int = 5, enhance: str = None, rer
             for score, doc in zip(scores, results):
                 doc['cross_encoder_score'] = score
             sorted_scores = sorted(results, key = lambda x: x['cross_encoder_score'], reverse=True)[:final_limit]
-            print(f"Re-ranking top {limit} results using {rerank_method} method...")
-            print(f"Reciprocal Rank Fusion Results for {query} (k={k})")
-            for i, doc in enumerate(sorted_scores, 1):
-                print(f"""{i}. {doc.get('doc', '').get('title', '')}
-                Cross Encoder Score: {doc['cross_encoder_score']}
-                RRF Score: {doc['rrf_score']}
-                BM25 Rank: {doc['bm25_rank']}, Semantic Rank: {doc['semantic_rank']}
-                {doc['doc']['document'][:50]}...""")
-        case _:
-            for i, result in enumerate(results, 1):
-                print(f"{i}.  {result['doc']['title']}\n  RRF Score: {result['rrf_score']}\n  BM25 Rank: {result['bm25_rank']}, Semantic Rank: {result['semantic_rank']}\n  {result['doc']['document'][:50]}")
+            return sorted_scores
 
+        case _:
+           return results
 
 def weighted_search(query: str, alpha: float, limit: int = 5) -> None:
     documents = load_movies()
