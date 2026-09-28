@@ -327,6 +327,7 @@ def rrf_search(query: str, k: int = 60, limit: int = 5, enhance: str = None, rer
             for i, result in enumerate(results, 1):
                 print(f"{i}.  {result['doc']['title']}\n  RRF Score: {result['rrf_score']}\n  BM25 Rank: {result['bm25_rank']}, Semantic Rank: {result['semantic_rank']}\n  {result['doc']['document'][:50]}")
 
+
 def weighted_search(query: str, alpha: float, limit: int = 5) -> None:
     documents = load_movies()
     hybrid_search = HybridSearch(documents)
