@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 import time
+import json
 
 from .keyword_search import InvertedIndex
 from .semantic_search import ChunkedSemanticSearch
@@ -98,7 +99,7 @@ class HybridSearch:
                     "bm25_rank": None,
                     "semantic_rank": i
                 }
-        
+
         for movie in results_map.values():
             if movie['bm25_rank'] and movie['semantic_rank']:
                 movie['rrf_score'] = rff_score(movie['bm25_rank'], k) + rff_score(movie['semantic_rank'], k)
@@ -110,13 +111,13 @@ class HybridSearch:
         sorted_results = sorted(results_map.values(), key = lambda x: x['rrf_score'], reverse=True)[:limit]
 
         return sorted_results
-        
+
 
 def rrf_search(query: str, k: int = 60, limit: int = 5, enhance: str = None, rerank_method: str = None):
     documents = load_movies()
     hybrid_search = HybridSearch(documents)
     # if rerank_method = individual, get 5 times the limit
-    if rerank_method == "individual":
+    if rerank_method:
         limit = limit * 5
     load_dotenv()
     api_key = os.environ.get("OPENROUTER_API_KEY")
@@ -147,7 +148,7 @@ def rrf_search(query: str, k: int = 60, limit: int = 5, enhance: str = None, rer
                 messages=messages
             )
             enhanced_query = response.choices[0].message.content
-            
+
             print(f"Enhanced query ({enhance}: '{query}' -> '{enhanced_query}')\n")
 
             results = hybrid_search.rrf_search(enhanced_query, k, limit)
@@ -181,7 +182,7 @@ def rrf_search(query: str, k: int = 60, limit: int = 5, enhance: str = None, rer
                 messages=messages
             )
             enhanced_query = response.choices[0].message.content
-            
+
             print(f"Enhanced query ({enhance}: '{query}' -> '{enhanced_query}')\n")
 
             results = hybrid_search.rrf_search(enhanced_query, k, limit)
@@ -261,10 +262,49 @@ def rrf_search(query: str, k: int = 60, limit: int = 5, enhance: str = None, rer
                       RRF Score: {doc['rrf_score']}
                       BM25 Rank: {doc['bm25_rank']}, Semantic Rank: {doc['semantic_rank']}
                       {doc_data['document'][:50]}...""")
+        case "batch":
+            documents = [doc['doc'] for doc in results]
+            doc_list_str = ' '.join(' '.join(f"{k}:{v}" for k,v in doc.items()) for doc in documents)
+            messages = [
+                {
+                    "role": "user",
+                    "content":f"""Rank the movies listed below by relevance to the following search query.
+
+                    Query: "{query}"
+
+                    Movies:
+                    {doc_list_str}
+
+                    Return the movie IDs in order of relevance, best match first.
+
+                    Your response must be a raw JSON array of integers.
+                    Do not wrap the JSON in Markdown. Do not use a ```json code block.
+                    Do not include any explanatory text.
+
+                    For example:
+                    [75, 12, 34, 2, 1]
+
+                    Ranking:"""
+                }
+            ]
+            response = client.chat.completions.create(
+               model = "openrouter/free",
+               messages=messages
+            )
+            rankings = json.loads(response.choices[0].message.content)
+            sorted_rankings = sorted(rankings)[:limit]
+            top_docs = [doc for doc in results if doc['doc']['id'] in sorted_rankings]
+            for i, doc in enumerate(top_docs, 1):
+                doc_data = doc['doc']
+                print(f"""{i}. {doc_data['title']}
+                      Re-rank Rank: {i}
+                      RRF Score: {doc['rrf_score']}
+                      BM25 Rank: {doc['bm25_rank']}, Semantic Rank: {doc['semantic_rank']}
+                      {doc_data['document'][:50]}...f""")
         case _:
             for i, result in enumerate(results, 1):
                 print(f"{i}.  {result['doc']['title']}\n  RRF Score: {result['rrf_score']}\n  BM25 Rank: {result['bm25_rank']}, Semantic Rank: {result['semantic_rank']}\n  {result['doc']['document'][:50]}")
-   
+
 def weighted_search(query: str, alpha: float, limit: int = 5) -> None:
     documents = load_movies()
     hybrid_search = HybridSearch(documents)
