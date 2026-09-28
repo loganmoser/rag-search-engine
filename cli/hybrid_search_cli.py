@@ -4,6 +4,7 @@ from lib.hybrid_search import (
     normalize_scores,
     weighted_search,
     rrf_search,
+    llm_evaluate,
 )
 
 
@@ -25,6 +26,7 @@ def main() -> None:
     rff_search_parser.add_argument("--limit", nargs="?", type=int, default=5, help="Number of results to return. Defaults to 5")
     rff_search_parser.add_argument("--enhance", type=str, choices=["spell", "rewrite", "expand"], help="Query enhancement method")
     rff_search_parser.add_argument("--rerank-method", type=str, choices=["individual", "batch", "cross_encoder"])
+    rff_search_parser.add_argument("--evaluate", action="store_true", help="Evaluate rankings with LLM")
 
     args = parser.parse_args()
 
@@ -37,7 +39,6 @@ def main() -> None:
             weighted_search(args.query, args.alpha, args.limit)
         case "rrf-search":
             results = rrf_search(args.query, args.k, args.limit, args.enhance, args.rerank_method)
-
             match args.rerank_method:
                 case "individual":
                     print(f"Re-ranking the top {args.limit} results using {args.rerank_method} method...")
@@ -58,9 +59,9 @@ def main() -> None:
                               BM25 Rank: {doc['bm25_rank']}, Semantic Rank: {doc['semantic_rank']}
                               {doc_data['document'][:50]}...f""")
                 case "cross_encoder":
-                    print(f"Re-ranking top {limit} results using {rerank_method} method...")
-                    print(f"Reciprocal Rank Fusion Results for {query} (k={k})")
-                    for i, doc in enumerate(sorted_scores, 1):
+                    print(f"Re-ranking top {args.limit} results using {args.rerank_method} method...")
+                    print(f"Reciprocal Rank Fusion Results for {args.query} (k={args.k})")
+                    for i, doc in enumerate(results, 1):
                         print(f"""{i}. {doc.get('doc', '').get('title', '')}
                         Cross Encoder Score: {doc['cross_encoder_score']}
                         RRF Score: {doc['rrf_score']}
@@ -69,6 +70,9 @@ def main() -> None:
                 case _:
                     for i, result in enumerate(results, 1):
                         print(f"{i}.  {result['doc']['title']}\n  RRF Score: {result['rrf_score']}\n  BM25 Rank: {result['bm25_rank']}, Semantic Rank: {result['semantic_rank']}\n  {result['doc']['document'][:50]}")
+            if args.evaluate:
+                llm_evaluate(args.query, results)
+
         case _:
             parser.print_help()
 

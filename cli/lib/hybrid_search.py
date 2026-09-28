@@ -115,6 +115,8 @@ class HybridSearch:
 
 
 def rrf_search(query: str, k: int = 60, limit: int = 5, enhance: str = None, rerank_method: str = None):
+    #Debug #1: Log the query
+    print(f"Debug Step 1: Query\n{query}\n")
     documents = load_movies()
     hybrid_search = HybridSearch(documents)
     # if rerank_method = individual, get 5 times the limit
@@ -223,6 +225,8 @@ def rrf_search(query: str, k: int = 60, limit: int = 5, enhance: str = None, rer
                 results = hybrid_search.rrf_search(enhanced_query, k, limit)
         case _:
             results = hybrid_search.rrf_search(query, k, limit)
+            #Debug #2: log the results after RRF Search
+            print(f"Step 2: Results: {[doc['doc']['title'] for doc in results]}\n")
         # Possibly re-rank results using an llm
     match rerank_method:
         case "individual":
@@ -256,6 +260,7 @@ def rrf_search(query: str, k: int = 60, limit: int = 5, enhance: str = None, rer
                 rerank_scores.append(doc)
                 time.sleep(3)
             sorted_reranked_scores = sorted(rerank_scores, key = lambda x: x['rerank_score'], reverse=True)[:final_limit]
+            print(f"Step 2: Reranked results: {[doc['doc']['title'] for doc in sorted_reranked_scores]}\n")
             return sorted_ranked_scores
         case "batch":
             documents = [doc['doc'] for doc in results]
@@ -289,6 +294,7 @@ def rrf_search(query: str, k: int = 60, limit: int = 5, enhance: str = None, rer
             rankings = json.loads(response.choices[0].message.content)
             sorted_rankings = sorted(rankings)[:final_limit]
             top_docs = [doc for doc in results if doc['doc']['id'] in sorted_rankings]
+            print(f"Step 2: Re-ranked Results: {[doc['doc']['title'] for doc in top_docs]}\n")
             return top_docs
 
         case "cross_encoder":
@@ -302,11 +308,49 @@ def rrf_search(query: str, k: int = 60, limit: int = 5, enhance: str = None, rer
             for score, doc in zip(scores, results):
                 doc['cross_encoder_score'] = score
             sorted_scores = sorted(results, key = lambda x: x['cross_encoder_score'], reverse=True)[:final_limit]
+            print(f"Step 2: Reranked results: {[doc['doc']['title'] for doc in sorted_scores]}\n")
             return sorted_scores
 
         case _:
            return results
 
+def llm_evaluate(query, results):
+    load_dotenv()
+    api_key = os.environ.get("OPENROUTER_API_KEY")
+    client = OpenAI(
+            base_url = "https://openrouter.ai/api/v1",
+            api_key=api_key
+        )
+    messages = [
+        {
+            "role": "user",
+            "content":f"""Rate how relevant each result is to this query on a 0-3 scale:
+
+            Query: "{query}"
+
+            Results:
+            {chr(10).join(results)}
+
+            Scale:
+            - 3: Highly relevant
+            - 2: Relevant
+            - 1: Marginally relevant
+            - 0: Not relevant
+
+            Do NOT give any numbers other than 0, 1, 2, or 3.
+
+            Return ONLY the scores in the same order you were given the documents. Return a valid JSON list, nothing else. For example:
+
+            [2, 0, 3, 2, 0, 1]"""
+        }
+    ]
+    response = client.chat.completions.create(
+                   model = "openrouter/free",
+                   messages=messages
+                )
+    rankings = json.loads(response.choices[0].message.content)
+    for i, (score, doc) in enumerate(zip(rankings, results), 1):
+        print(f"{i}. {doc['doc']['title']}: {score}/3")
 def weighted_search(query: str, alpha: float, limit: int = 5) -> None:
     documents = load_movies()
     hybrid_search = HybridSearch(documents)
