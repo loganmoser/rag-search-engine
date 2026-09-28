@@ -315,6 +315,7 @@ def rrf_search(query: str, k: int = 60, limit: int = 5, enhance: str = None, rer
            return results
 
 def llm_evaluate(query, results):
+    titles = [doc['doc']['title'] for doc in results]
     load_dotenv()
     api_key = os.environ.get("OPENROUTER_API_KEY")
     client = OpenAI(
@@ -329,7 +330,7 @@ def llm_evaluate(query, results):
             Query: "{query}"
 
             Results:
-            {chr(10).join(results)}
+            {chr(10).join(titles)}
 
             Scale:
             - 3: Highly relevant
