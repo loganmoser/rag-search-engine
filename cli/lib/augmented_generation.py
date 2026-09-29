@@ -20,22 +20,38 @@ client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key)
 model = "openrouter/free"
 
 
-def generate_answer(search_results, query, limit=5):
+def generate_answer(search_results, query, llm_task: str | None = None, limit: int=5):
     context = ""
 
     for result in search_results[:limit]:
         context += f"{result['doc']['title']}: {result['doc']['document']}\n\n"
 
-    prompt = f"""You are a RAG agent for Webflyx, a movie streaming service.
-    Your task is to provide a natural-language answer to the user's query based on documents retrieved during search.
-    Provide a comprehensive answer that addresses the user's query.
+    match llm_task:
+        case "summarize":
+            prompt = f"""Provide information useful to the query below by synthesizing data from multiple search results in detail.
 
-    Query: {query}
+            The goal is to provide comprehensive information so that users know what their options are.
+            Your response should be information-dense and concise, with several key pieces of information about the genre, plot, etc. of each movie.
 
-    Documents:
-    {context}
+            This should be tailored to Webflyx users. Webflyx is a movie streaming service.
 
-    Answer:"""
+            Query: {query}
+
+            Search results:
+            {search_results}
+
+            Provide a comprehensive 3–4 sentence answer that combines information from multiple sources:"""
+        case _:
+            prompt = f"""You are a RAG agent for Webflyx, a movie streaming service.
+            Your task is to provide a natural-language answer to the user's query based on documents retrieved during search.
+            Provide a comprehensive answer that addresses the user's query.
+
+            Query: {query}
+
+            Documents:
+            {context}
+
+            Answer:"""
 
     response = client.chat.completions.create(
         model=model, messages=[{"role": "user", "content": prompt}]
@@ -43,7 +59,7 @@ def generate_answer(search_results, query, limit=5):
     return (response.choices[0].message.content or "").strip()
 
 
-def rag(query, limit=DEFAULT_SEARCH_LIMIT):
+def rag(query, llm_task: str | None = None, limit=DEFAULT_SEARCH_LIMIT):
     movies = load_movies()
     hybrid_search = HybridSearch(movies)
 
@@ -58,7 +74,7 @@ def rag(query, limit=DEFAULT_SEARCH_LIMIT):
             "error": "No results found",
         }
 
-    answer = generate_answer(search_results, query, limit)
+    answer = generate_answer(search_results, query, llm_task, limit)
 
     return {
         "query": query,
@@ -66,6 +82,8 @@ def rag(query, limit=DEFAULT_SEARCH_LIMIT):
         "answer": answer,
     }
 
+def summarize_command(query, llm_task: str = "summarize"):
+    return rag(query, llm_task)
 
 def rag_command(query):
     return rag(query)
