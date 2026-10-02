@@ -41,6 +41,40 @@ def generate_answer(search_results, query, llm_task: str | None = None, limit: i
             {search_results}
 
             Provide a comprehensive 3–4 sentence answer that combines information from multiple sources:"""
+        case "citation":
+            prompt = f"""Answer the query below and give information based on the provided documents.
+
+            The answer should be tailored to users of Webflyx, a movie streaming service.
+            If not enough information is available to provide a good answer, say so, but give the best answer possible while citing the sources available.
+
+            Query: {query}
+
+            Documents:
+            {search_results}
+
+            Instructions:
+            - Provide a comprehensive answer that addresses the query
+            - Cite sources in the format [1], [2], etc. when referencing information
+            - If sources disagree, mention the different viewpoints
+            - If the answer isn't in the provided documents, say "I don't have enough information"
+            - Be direct and informative
+
+            Answer:"""
+        case "question":
+            prompt = f"""Answer the user's question based on the provided movies that are available on Webflyx, a streaming service.
+
+            Question: {query}
+
+            Documents:
+            {search_results}
+
+            Instructions:
+            - Answer questions directly and concisely
+            - Be casual and conversational
+            - Don't be cringe or hype-y
+            - Talk like a normal person would in a chat conversation
+
+            Answer:"""
         case _:
             prompt = f"""You are a RAG agent for Webflyx, a movie streaming service.
             Your task is to provide a natural-language answer to the user's query based on documents retrieved during search.
@@ -81,6 +115,12 @@ def rag(query, llm_task: str | None = None, limit=DEFAULT_SEARCH_LIMIT):
         "search_results": search_results[:limit],
         "answer": answer,
     }
+
+def question_command(query, limit, llm_task: str | None = "question"):
+    return rag(query, "question", limit)
+
+def citation_command(query, limit, llm_task: str | None = "citation"):
+    return rag(query, "citation", limit)
 
 def summarize_command(query, llm_task: str = "summarize"):
     return rag(query, llm_task)
