@@ -9,8 +9,7 @@ wheels/
 # Virtual environments
 .venv
 
-# Data directory does not need to be tracked 
-data/
+# Data directory does not need to be tracked
 cache/
 
 # Environemnt variables
