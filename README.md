@@ -65,8 +65,6 @@ uv run python test_llm.py
 
 ## Usage
 
-> **TODO:** The commands and flags below are examples of the pattern. Replace the script names, subcommands, and arguments with the exact ones in your `cli/` folder.
-
 ### Keyword search
 
 Finds documents that contain your query terms, ranked by BM25.
